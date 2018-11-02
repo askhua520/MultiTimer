@@ -10,6 +10,7 @@ static struct Timer* head_handle = NULL;
 
 //Timer ticks
 static uint32_t _timer_ticks = 0;
+static uint8_t _timer_ticks_flag = 0;
 
 /**
   * @brief  Initializes the timer struct handle.
@@ -69,14 +70,61 @@ void timer_stop(struct Timer* handle)
 void timer_loop()
 {
 	struct Timer* target;
-	for(target=head_handle; target; target=target->next) {
-		if(_timer_ticks >= target->timeout) {
-			if(target->repeat == 0) {
+	//方式一
+/* 	uint8_t flag = _timer_ticks_flag;
+	_timer_ticks_flag = 0;
+	for(target=head_handle; target; target=target->next){
+		if(((flag == target->overFlag)&&(_timer_ticks >= target->timeout))||(flag > target->overFlag)){
+			target->overFlag = 0;
+			if(target->repeat == 0){
 				timer_stop(target);
-			} else {
+			} 
+			else {					
 				target->timeout = _timer_ticks + target->repeat;
+				if(target->timeout < _timer_ticks){
+					target->overFlag = 1;
+				}
 			}
 			target->timeout_cb();
+		}
+	} */
+	//方式二:代码换速度
+	//_timer_ticks_flag变为1时的处理方式
+	if(_timer_ticks_flag == 1){
+		_timer_ticks_flag = 0;//复位标志
+		for(target=head_handle; target; target=target->next){
+			if(target->overFlag == 1){
+				target->overFlag = 0;//任务和定时器都发生反转,则都复位,按照正常比较
+			}
+			else {//定时器已经反转了而任务还没反转,说明任务已经超时,但是没有执行,应立即执行
+				if(target->repeat == 0){
+					timer_stop(target);
+				} 
+				else {
+					target->timeout = _timer_ticks + target->repeat;
+					// if(target->timeout < _timer_ticks){
+						// target->overFlag = 1;
+					// }
+				}
+				target->timeout_cb();
+			}
+		}
+	}
+	//target->overFlag = 0;_timer_ticks_flag = 0;时的处理方式
+	for(target=head_handle; target; target=target->next){		
+		if(target->overFlag == 0){//正常比较
+			if(_timer_ticks >= target->timeout){
+				if(target->repeat == 0){
+					timer_stop(target);
+				} 
+				else {					
+					target->timeout = _timer_ticks + target->repeat;
+					if(target->timeout < _timer_ticks){
+						target->overFlag = 1;
+					}
+				}
+				target->timeout_cb();
+			}
 		}
 	}
 }

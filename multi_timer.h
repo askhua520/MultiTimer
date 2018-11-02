@@ -11,6 +11,7 @@
 typedef struct Timer {
     uint32_t timeout;
     uint32_t repeat;
+	uint8_t overFlag;
     void (*timeout_cb)(void);
     struct Timer* next;
 }Timer;
